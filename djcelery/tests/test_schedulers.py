@@ -74,7 +74,7 @@ class test_ModelEntry(unittest.TestCase):
         PeriodicTask.objects.all().delete()
 
     def test_entry(self):
-        m = create_model_interval(schedule(timedelta(seconds=10)))
+        m = create_model_interval(schedule(timedelta(seconds=10)), expires=60)
         e = self.Entry(m)
 
         self.assertListEqual(e.args, [2, 2])
@@ -84,11 +84,12 @@ class test_ModelEntry(unittest.TestCase):
         self.assertIsInstance(e.last_run_at, datetime)
         self.assertDictContainsSubset({'queue': 'xaz',
                                        'exchange': 'foo',
+                                       'expires': 60,
                                        'routing_key': 'cpu'}, e.options)
 
         right_now = celery.now()
         m2 = create_model_interval(schedule(timedelta(seconds=10)),
-                                   last_run_at=right_now)
+                                   last_run_at=right_now, expires_at=right_now)
         self.assertTrue(m2.last_run_at)
         e2 = self.Entry(m2)
         self.assertIs(e2.last_run_at, right_now)
@@ -96,6 +97,7 @@ class test_ModelEntry(unittest.TestCase):
         e3 = e2.next()
         self.assertGreater(e3.last_run_at, e2.last_run_at)
         self.assertEqual(e3.total_run_count, 1)
+        self.assertDictContainsSubset({'expires': right_now}, e2.options)
 
 
 class test_DatabaseScheduler(unittest.TestCase):
